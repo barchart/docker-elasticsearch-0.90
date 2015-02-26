@@ -2,7 +2,7 @@
 # Elasticsearch Node
 #
 # docker-build properties:
-# TAG=barchart/elasticsearch-aws:0.90
+# TAG=barchart/elasticsearch-aws:0.90-latest
 
 FROM barchart/java
 MAINTAINER Jeremy Jongsma "jeremy@barchart.com"

@@ -1,0 +1,18 @@
+{
+	"type": "docker",
+	"image": "barchart/elasticsearch:0.90",
+  "privileged": true,
+	"volumes": [
+		{
+			"containerPath": "/elasticsearch/data",
+			"hostPath": "/mnt/elasticsearch"
+		}
+	],
+  "env": {
+    "ES_CLUSTER_NAME": "elasticsearch",
+    "ES_SHARDS": "10",
+    "ES_REPLICAS": "1",
+    "ES_DISCOVERY_EC2_GROUPS": "sg-xxxxxxxx",
+    "ES_GATEWAY_S3_BUCKET": "my-elasticsearch-gateway"
+  }
+}
