@@ -2,24 +2,25 @@
 # Elasticsearch Node
 #
 # docker-build properties:
-# TAG=barchart/elasticsearch:latest
+# TAG=barchart/elasticsearch-aws:0.90
 
 FROM barchart/java
 MAINTAINER Jeremy Jongsma "jeremy@barchart.com"
 
-# Download version 1.4.2 of elasticsearch
+# Download version 0.90.x of elasticsearch
 RUN wget -O - http://packages.elasticsearch.org/GPG-KEY-elasticsearch | apt-key add - && \
-	add-apt-repository "deb http://packages.elasticsearch.org/elasticsearch/0.90/debian stable main" && \
-	apt-get update && \
-	apt-get install elasticsearch && \
+	add-apt-repository -y "deb http://packages.elasticsearch.org/elasticsearch/0.90/debian stable main" && \
+	apt-get -y update && \
+	apt-get -y install elasticsearch && \
 	/usr/share/elasticsearch/bin/plugin install elasticsearch/elasticsearch-cloud-aws/1.16.0 && \
 	apt-get clean
 
-ADD elasticsearch.yml /etc/elasticsearch/
+ADD elasticsearch/ /etc/elasticsearch
+ADD bin/elasticsearch-run /usr/local/bin/elasticsearch-run
 
 EXPOSE 9200
 EXPOSE 9300
 
 VOLUME ["/elasticsearch"]
 
-CMD ["/usr/share/elasticsearch/bin/elasticsearch"]
+CMD ["/usr/local/bin/elasticsearch-run"]

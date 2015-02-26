@@ -1,0 +1,49 @@
+cluster.name: ${ES_CLUSTER_NAME}
+node.name: ${ES_NODE_NAME}
+
+path:
+  conf: /etc/elasticsearch
+  data: /elasticsearch/data
+  work: /elasticsearch/tmp
+  logs: /var/log/ext/elasticsearch
+  # plugins: /path/to/plugins
+
+index:
+  number_of_shards: ${ES_SHARDS}
+  number_of_replicas: ${ES_REPLICAS}
+  store.type: memory
+
+cache.memory.direct: false
+bootstrap.mlockall: true
+
+gateway:
+  type: s3
+  recover_after_nodes: ${ES_NODE_QUORUM}
+  expected_nodes: ${ES_NODE_COUNT}
+  s3.bucket: ${ES_GATEWAY_S3_BUCKET}
+
+cloud:
+  aws.region: ${ES_CLOUD_AWS_REGION}
+  node.auto_attributes: true
+
+discovery:
+  type: ec2
+  ec2.groups: ${ES_DISCOVERY_EC2_GROUPS}
+
+index.search.slowlog.threshold:
+  query:
+    warn: 10s
+    info: 5s
+    debug: 2s
+    trace: 500ms
+  fetch:
+    warn: 1s
+    info: 800ms
+    debug: 500ms
+    trace: 200ms
+
+index.indexing.slowlog.threshold.index:
+  warn: 10s
+  info: 5s
+  debug: 2s
+  trace: 500ms

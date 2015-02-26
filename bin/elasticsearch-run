@@ -1,0 +1,106 @@
+#!/bin/bash
+
+set -e
+
+# Run ElasticSearch as this user ID and group ID
+#ES_USER=elasticsearch
+#ES_GROUP=elasticsearch
+
+# Heap Size (defaults to 256m min, 1g max)
+#ES_HEAP_SIZE=2g
+
+# Heap new generation
+#ES_HEAP_NEWSIZE=
+
+# max direct memory
+#ES_DIRECT_SIZE=5g
+
+# Maximum number of open files, defaults to 65535.
+#MAX_OPEN_FILES=65535
+
+# Maximum locked memory size. Set to "unlimited" if you use the
+# bootstrap.mlockall option in elasticsearch.yml. You must also set
+# ES_HEAP_SIZE.
+MAX_LOCKED_MEMORY=unlimited
+
+# ElasticSearch log directory
+LOG_DIR=/var/log/ext/elasticsearch
+
+BASE_DIR=/elasticsearch
+
+# ElasticSearch data directory
+DATA_DIR=${BASE_DIR}/data
+
+# ElasticSearch work directory
+WORK_DIR=${BASE_DIR}/tmp
+
+# ElasticSearch configuration directory
+CONF_DIR=/etc/elasticsearch
+
+# ElasticSearch configuration file (elasticsearch.yml)
+CONF_FILE=/etc/elasticsearch/elasticsearch.yml
+
+# Additional Java OPTS
+#ES_JAVA_OPTS=
+
+# Configure restart on package upgrade (true, every other setting will lead to not restarting)
+RESTART_ON_UPGRADE=true
+
+# Check if we're at AWS, otherwise these need to be set in environment already
+if wget -q http://instance-data.ec2.internal; then
+
+	# Export AWS user-data variables for config
+	USERDATA=`wget -qO- http://instance-data.ec2.internal/latest/user-data`
+	if [ "$USERDATA" != "unavailable" ]; then
+		eval $USERDATA
+	fi
+
+	# Node AWS region / DNS name
+	ES_CLOUD_AWS_REGION=`wget -qO- http://instance-data.ec2.internal/latest/dynamic/instance-identity/document | grep region | awk -F\" '{print $4}'`
+	ES_NODE_NAME=`wget -qO- http://instance-data.ec2.internal/latest/meta-data/public-hostname`
+
+fi
+
+# Defaults
+if test -z "$ES_HEAP_SIZE"; then ES_HEAP_SIZE="2g"; fi
+if test -z "$ES_CLUSTER_NAME"; then ES_CLUSTER_NAME="elasticsearch"; fi
+if test -z "$ES_NODE_NAME"; then ES_NODE_NAME=`hostname --fqdn`; fi
+if test -z "$ES_SHARDS"; then ES_SHARDS=10; fi
+if test -z "$ES_REPLICAS"; then ES_REPLICAS=1; fi
+if test -z "$ES_CLOUD_AWS_REGION"; then ES_CLOUD_AWS_REGION="us-east-1"; fi
+
+if test -n "$ES_DISCOVERY_EC2_GROUPS"; then
+	# Expected node count / quorum for data restore on cluster restart
+	FILTER_PREFIX="Name=instance.group-name,Values="
+	FILTERS="$FILTER_PREFIX`echo ${ES_DISCOVERY_EC2_GROUPS} | sed -e \"s/,/ $FILTER_PREFIX/g\"`"
+	ES_NODE_COUNT=`aws --region ${ES_CLOUD_AWS_REGION} ec2 describe-instances --filters ${FILTERS} | grep InstanceId | wc -l`
+	ES_NODE_QUORUM=`awk 'BEGIN { print sprintf("%.0f", ($ES_NODE_COUNT/2) + 1); }'`
+else
+	ES_DISCOVERY_EC2_GROUPS="none"
+	ES_NODE_COUNT=1
+	ES_NODE_QUORUM=1
+fi
+
+# Vars used in ES config file
+export ES_CLUSTER_NAME
+export ES_NODE_NAME
+export ES_NODE_COUNT
+export ES_NODE_QUORUM
+export ES_SHARDS
+export ES_REPLICAS
+export ES_CLOUD_AWS_REGION
+export ES_DISCOVERY_EC2_GROUPS
+export ES_GATEWAY_S3_BUCKET
+
+echo "Starting elasticsearch with configuration:"
+set | grep ES_
+echo
+
+ulimit -n 32000 || echo "Could not set file limit, did you run in privileged mode?"
+ulimit -l unlimited || echo "Could not set memory lock limit, did you run in privileged mode?"
+/usr/share/elasticsearch/bin/elasticsearch -f \
+	-Des.default.config=$CONF_FILE \
+	-Des.default.path.logs=$LOG_DIR \
+	-Des.default.path.data=$DATA_DIR \
+	-Des.default.path.work=$WORK_DIR \
+	-Des.default.path.conf=$CONF_DIR
